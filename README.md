@@ -1,16 +1,27 @@
 # Multimodal Enterprise RAG System
 
-Enterprise-grade Retrieval-Augmented Generation system with multimodal support (text, image, audio) and hybrid knowledge retrieval combining knowledge graphs and vector search.
+**72-Hour Technical Challenge Submission** - Enterprise-grade Retrieval-Augmented Generation system with multimodal support and hybrid knowledge retrieval combining knowledge graphs and vector search.
+
+## Challenge Requirements Met
+
+- **Evaluation-first approach** with DeepEval integration
+- **3+ modalities**: PDF, Images (OCR), Audio (Whisper transcription)
+- **Knowledge Graph**: Neo4j with entity/relationship extraction
+- **Vector Database**: Qdrant with semantic search
+- **Hybrid Search**: Graph traversal + Keyword filtering + Vector retrieval
+- **LLM-based extraction** with cross-modal entity linking
+- **User Interface**: CLI + Streamlit web UI
+- **Production-ready**: Docker deployment, comprehensive docs, testing
 
 ## Features
 
-- **Multimodal Ingestion**: Process PDF, images (with OCR), and audio (with transcription)
-- **Knowledge Graph**: Entity and relationship extraction stored in Neo4j
-- **Vector Search**: Semantic search using Qdrant
-- **Hybrid Retrieval**: Combines graph traversal, keyword filtering, and vector search
-- **LLM Integration**: Support for OpenAI and Anthropic models
-- **Evaluation Framework**: Built-in evaluation with DeepEval
-- **Web UI**: Streamlit interface for easy interaction
+- **Multimodal Ingestion Pipeline**: Process PDF, images (Tesseract/EasyOCR), and audio (OpenAI Whisper)
+- **Knowledge Graph (Neo4j)**: LLM-based entity and relationship extraction (7 entity types, 7 relationship types)
+- **Vector Database (Qdrant)**: Semantic search with Sentence Transformers embeddings
+- **Hybrid Search Engine**: Combines graph traversal (30%), keyword filtering (20%), and vector retrieval (50%)
+- **LLM Integration**: Support for Google Gemini, OpenAI, and Anthropic models
+- **Evaluation Framework**: 5 query types, 8 metrics, DeepEval integration with graceful failures
+- **Dual Interface**: CLI and Streamlit web UI
 
 ## Architecture
 
@@ -33,56 +44,80 @@ multimodal-rag/
 
 ### 1. Prerequisites
 
-- Docker and Docker Compose
+- Docker Desktop (for Neo4j + Qdrant)
 - Python 3.8+
-- OpenAI or Anthropic API key
+- Google Gemini API key (or OpenAI/Anthropic)
 
-### 2. Setup Infrastructure
+### 2. Start Infrastructure
 
-Start Neo4j and Qdrant:
+**Start Neo4j and Qdrant with Docker:**
 
 ```bash
-# On Windows
-scripts\setup\setup_docker.bat
+# Navigate to docker directory
+cd infrastructure/docker
 
-# On Linux/Mac
-bash scripts/setup/setup_docker.sh
+# Start services
+docker-compose up -d
+
+# Verify services are running
+# Neo4j Browser: http://localhost:7474 (neo4j/password123)
+# Qdrant Dashboard: http://localhost:6333/dashboard
 ```
 
 ### 3. Install Dependencies
 
 ```bash
+# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Activate
+# Windows PowerShell:
+venv\Scripts\Activate.ps1
+# Windows CMD:
+venv\Scripts\activate.bat
+# Mac/Linux:
+source venv/bin/activate
+
+# Install packages
+pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
 ### 4. Configure Environment
 
-Copy `.env.example` to `.env` and add your API keys:
-
 ```bash
+# Copy template
 cp .env.example .env
+
+# Edit .env with your API key
 ```
 
-Edit `.env`:
-```
-OPENAI_API_KEY=your_key_here
+Required in `.env`:
+```bash
+GOOGLE_API_KEY=your_google_api_key_here  # Get from: https://aistudio.google.com/app/apikey
 NEO4J_URI=bolt://localhost:7687
 NEO4J_PASSWORD=password123
 QDRANT_HOST=localhost
+LLM_PROVIDER=google
+LLM_MODEL=gemini-1.5-flash
 ```
 
 ### 5. Run the System
 
-**CLI Mode:**
+**Option A - CLI (Recommended for first-time):**
 ```bash
 python -m src.main
 ```
 
-**Web UI:**
+**Option B - Web UI:**
 ```bash
 streamlit run src/ui/app.py
+# Opens http://localhost:8501
+```
+
+**Option C - Test the system:**
+```bash
+python test_system.py
 ```
 
 ## Usage
@@ -104,19 +139,40 @@ streamlit run src/ui/app.py
 3. Use the "Query" tab to ask questions
 4. View system statistics in the "Statistics" tab
 
-## Evaluation
+## Evaluation Framework
 
-The system includes an evaluation-first framework with:
+Built with **evaluation-first mindset** as required by the challenge:
 
-- Query types: Factual, Lookup, Summarization, Semantic Linkage, Reasoning
-- Metrics: Accuracy, Relevance, Hallucination Rate, Latency
-- DeepEval integration for comprehensive testing
+**Query Types (5):**
+- Factual: Direct fact retrieval
+- Lookup: Entity/attribute search
+- Summarization: Multi-document synthesis
+- Semantic Linkage: Cross-modal relationships
+- Reasoning: Multi-hop inference
+
+**Metrics Tracked (8):**
+- Accuracy, Relevance, Context Precision
+- Hallucination Rate, Answer Faithfulness
+- Context Relevance, Context Recall
+- Latency (retrieval + generation)
+
+**Tools:**
+- DeepEval integration with fallback metrics
+- Graceful failure handling (5 scenarios)
+- Per-query-type evaluation reports
 
 ## Supported File Types
 
-- **Text**: PDF, TXT
-- **Images**: JPG, PNG (with OCR)
-- **Audio**: MP3, WAV (with Whisper transcription)
+**3 Modalities Implemented:**
+- **Text Documents**: PDF, TXT (PyPDF extraction)
+- **Images**: JPG, PNG (Tesseract + EasyOCR for text extraction)
+- **Audio**: MP3, WAV (OpenAI Whisper transcription)
+
+**Processing Features:**
+- Parallel batch ingestion
+- Metadata extraction
+- Semantic chunking (configurable size/overlap)
+- Cross-modal entity linking
 
 ## Development
 
@@ -140,22 +196,56 @@ flake8 src/
 mypy src/
 ```
 
+## Architecture Highlights
+
+```
+Query Flow:
+User Query → Query Processor (validation)
+          → Hybrid Search (Graph + Vector + Keyword)
+          → Score Merging & Reranking
+          → Answer Generation (LLM)
+          → Evaluation & Metrics
+
+Ingestion Flow:
+File Upload → Modality Detection → Content Extraction
+           → Entity Extraction (LLM) → Dual Storage (Neo4j + Qdrant)
+```
+
+**Key Design Decisions:**
+- **Hybrid retrieval** with weighted score merging (Graph 30%, Vector 50%, Keyword 20%)
+- **Cross-modal linking** to connect entities across different file types
+- **Graceful degradation** with fallback mechanisms
+- **Modular architecture** for easy extension
+
 ## System Requirements
 
-- RAM: 8GB minimum, 16GB recommended
-- Storage: Depends on dataset size
-- GPU: Optional, improves Whisper transcription speed
+- **RAM**: 8GB minimum, 16GB recommended
+- **Storage**: ~5GB (Docker images + embeddings model)
+- **GPU**: Optional, speeds up Whisper transcription
+- **OS**: Windows, macOS, or Linux
 
-## Services
+## Service Endpoints
 
-- **Neo4j Browser**: http://localhost:7474
+- **Neo4j Browser**: http://localhost:7474 (neo4j/password123)
 - **Qdrant Dashboard**: http://localhost:6333/dashboard
 - **Streamlit UI**: http://localhost:8501
+
+## Documentation
+
+- `QUICKSTART.md` - Step-by-step setup guide
+- `IMPLEMENTATION_SUMMARY.md` - Technical implementation details
+- `SYSTEM_READY.md` - System status and testing guide
+- `docs/` - Comprehensive architecture documentation
+
+## Challenge Submission
+
+**Aparavi 72-Hour Technical Challenge**
+Multimodal Enterprise RAG with Knowledge Graphs and Hybrid Search
+
+**Author**: Kevin Xu
+**Email**: xuk654@gmail.com
+**GitHub**: https://github.com/KevinXu-github/multimodal-rag
 
 ## License
 
 See LICENSE file
-
-## Author
-
-Kevin Xu (xuk654@gmail.com)
