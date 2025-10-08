@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  neo4j:
+    image: neo4j:5.14.0
+    container_name: multimodal-rag-neo4j
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      - NEO4J_AUTH=neo4j/password123
+      - NEO4J_dbms_memory_pagecache_size=512M
+      - NEO4J_dbms_memory_heap_max__size=1G
+      - NEO4JLABS_PLUGINS=["apoc"]
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+      - neo4j_import:/var/lib/neo4j/import
+    networks:
+      - rag-network
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:v1.7.0
+    container_name: multimodal-rag-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    environment:
+      - QDRANT__SERVICE__GRPC_PORT=6334
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - rag-network
+    restart: unless-stopped
+
+volumes:
+  neo4j_data:
+  neo4j_logs:
+  neo4j_import:
+  qdrant_data:
+
+networks:
+  rag-network:
+    driver: bridge
