@@ -1,5 +1,6 @@
 """Qdrant vector storage."""
 
+import logging
 from typing import List, Dict, Any, Optional
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
@@ -11,6 +12,8 @@ from qdrant_client.models import (
     MatchValue,
 )
 from sentence_transformers import SentenceTransformer
+
+logger = logging.getLogger(__name__)
 
 
 class QdrantVectorStore:
@@ -24,7 +27,7 @@ class QdrantVectorStore:
         embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
     ):
         """Initialize Qdrant connection."""
-        self.client = QdrantClient(host=host, port=port, timeout=60)
+        self.client = QdrantClient(host=host, port=port, timeout=60, check_compatibility=False)
         self.collection_name = collection_name
         self.embedding_model = SentenceTransformer(embedding_model)
         self.vector_size = self.embedding_model.get_sentence_embedding_dimension()
@@ -69,7 +72,7 @@ class QdrantVectorStore:
             return True
 
         except Exception as e:
-            print(f"Error adding document: {e}")
+            logger.error(f"Error adding document: {e}", exc_info=True)
             return False
 
     def add_documents_batch(
@@ -104,7 +107,7 @@ class QdrantVectorStore:
             count = len(points)
 
         except Exception as e:
-            print(f"Error adding documents batch: {e}")
+            logger.error(f"Error adding documents batch: {e}", exc_info=True)
 
         return count
 
@@ -149,7 +152,7 @@ class QdrantVectorStore:
             ]
 
         except Exception as e:
-            print(f"Error searching: {e}")
+            logger.error(f"Error searching: {e}", exc_info=True)
             return []
 
     def delete_by_source(self, source_file: str) -> bool:
@@ -168,7 +171,7 @@ class QdrantVectorStore:
             )
             return True
         except Exception as e:
-            print(f"Error deleting documents: {e}")
+            logger.error(f"Error deleting documents: {e}", exc_info=True)
             return False
 
     def get_stats(self) -> Dict[str, Any]:
@@ -181,5 +184,5 @@ class QdrantVectorStore:
                 "distance_metric": collection_info.config.params.vectors.distance.name,
             }
         except Exception as e:
-            print(f"Error getting stats: {e}")
+            logger.error(f"Error getting stats: {e}", exc_info=True)
             return {}

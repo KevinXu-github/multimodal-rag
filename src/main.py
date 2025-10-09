@@ -1,10 +1,14 @@
 """Main entry point for the RAG system."""
 
+logger = logging.getLogger(__name__)
+
 import os
 from pathlib import Path
 from dotenv import load_dotenv
 
 from .pipeline import MultimodalRAGPipeline
+
+import logging
 
 load_dotenv()
 
@@ -27,20 +31,20 @@ def main():
         qdrant_host=os.getenv("QDRANT_HOST", "localhost"),
         qdrant_port=int(os.getenv("QDRANT_PORT", "6333")),
         llm_provider=llm_provider,
-        llm_model=os.getenv("LLM_MODEL", "gemini-1.5-flash"),
+        llm_model=os.getenv("LLM_MODEL", "gemini-2.5-flash"),
         llm_api_key=api_key,
         embedding_model=os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"),
     )
 
-    print("Initializing RAG system...")
+    logger.info("Initializing RAG system...")
     pipeline.initialize()
 
-    print("\nRAG System Ready!")
-    print("\nCommands:")
-    print("  ingest <file_or_directory> - Ingest files")
-    print("  query <question> - Ask a question")
-    print("  stats - Show system statistics")
-    print("  exit - Quit")
+    logger.info("\nRAG System Ready!")
+    logger.info("\nCommands:")
+    logger.info("  ingest <file_or_directory> - Ingest files")
+    logger.info("  query <question> - Ask a question")
+    logger.info("  stats - Show system statistics")
+    logger.info("  exit - Quit")
 
     while True:
         try:
@@ -58,39 +62,39 @@ def main():
 
                 if path.is_file():
                     success = pipeline.ingest_file(path)
-                    print(f"{'Success' if success else 'Failed'} ingesting {path}")
+                    logger.error(f"{'Success' if success else 'Failed'} ingesting {path}", exc_info=True)
                 elif path.is_dir():
                     stats = pipeline.ingest_directory(path)
-                    print(f"Ingested {stats['successful']}/{stats['total']} files")
+                    logger.info(f"Ingested {stats['successful']}/{stats['total']} files")
                 else:
-                    print(f"Path not found: {path}")
+                    logger.info(f"Path not found: {path}")
 
             elif user_input.startswith("query "):
                 question = user_input[6:].strip()
                 response = pipeline.query(question)
 
-                print(f"\nQuestion: {response.question}")
-                print(f"\nAnswer: {response.answer}")
-                print(f"\nConfidence: {response.confidence:.2f}")
-                print(f"Time: {response.metrics.get('total_time_ms', 0):.0f}ms")
+                logger.info(f"\nQuestion: {response.question}")
+                logger.info(f"\nAnswer: {response.answer}")
+                logger.info(f"\nConfidence: {response.confidence:.2f}")
+                logger.info(f"Time: {response.metrics.get('total_time_ms', 0):.0f}ms")
 
             elif user_input == "stats":
                 stats = pipeline.get_stats()
-                print("\nSystem Statistics:")
-                print(f"  Graph: {stats['graph']}")
-                print(f"  Vector: {stats['vector']}")
+                logger.info("\nSystem Statistics:")
+                logger.info(f"  Graph: {stats['graph']}")
+                logger.info(f"  Vector: {stats['vector']}")
 
             else:
-                print("Unknown command. Use: ingest, query, stats, or exit")
+                logger.info("Unknown command. Use: ingest, query, stats, or exit")
 
         except KeyboardInterrupt:
-            print("\nExiting...")
+            logger.info("\nExiting...")
             break
         except Exception as e:
-            print(f"Error: {e}")
+            logger.error(f"Error: {e}", exc_info=True)
 
     pipeline.close()
-    print("Goodbye!")
+    logger.info("Goodbye!")
 
 
 if __name__ == "__main__":

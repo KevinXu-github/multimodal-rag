@@ -16,14 +16,18 @@ load_dotenv()
 @st.cache_resource
 def get_pipeline():
     """Initialize and cache pipeline."""
-    llm_provider = os.getenv("LLM_PROVIDER", "google")
+    llm_provider = os.getenv("LLM_PROVIDER", "ollama")
+    llm_model = os.getenv("LLM_MODEL", "llama3.2")
 
-    if llm_provider == "google":
-        api_key = os.getenv("GOOGLE_API_KEY")
-    elif llm_provider == "openai":
-        api_key = os.getenv("OPENAI_API_KEY")
-    else:
-        api_key = os.getenv("ANTHROPIC_API_KEY")
+    # Only get API key for non-Ollama providers
+    api_key = None
+    if llm_provider != "ollama":
+        if llm_provider == "google":
+            api_key = os.getenv("GOOGLE_API_KEY")
+        elif llm_provider == "openai":
+            api_key = os.getenv("OPENAI_API_KEY")
+        else:
+            api_key = os.getenv("ANTHROPIC_API_KEY")
 
     pipeline = MultimodalRAGPipeline(
         neo4j_uri=os.getenv("NEO4J_URI", "bolt://localhost:7687"),
@@ -32,7 +36,7 @@ def get_pipeline():
         qdrant_host=os.getenv("QDRANT_HOST", "localhost"),
         qdrant_port=int(os.getenv("QDRANT_PORT", "6333")),
         llm_provider=llm_provider,
-        llm_model=os.getenv("LLM_MODEL", "gemini-1.5-flash"),
+        llm_model=llm_model,
         llm_api_key=api_key,
     )
     pipeline.initialize()
@@ -56,18 +60,39 @@ def main():
     with tabs[0]:
         st.header("Ask Questions")
 
+        # Initialize session state for storing results
+        if 'last_response' not in st.session_state:
+            st.session_state.last_response = None
+        if 'last_query' not in st.session_state:
+            st.session_state.last_query = ""
+
         query = st.text_input(
             "Enter your question:",
             placeholder="What is mentioned in the documents about...",
+            key="query_input",
         )
 
         col1, col2 = st.columns([1, 4])
         with col1:
-            search_button = st.button("Search", type="primary")
+            search_button = st.button("Search", type="primary", use_container_width=True)
 
+        # Execute search when button is clicked OR when Enter is pressed (query changed)
+        should_search = False
         if search_button and query:
+            should_search = True
+        elif query and query != st.session_state.last_query and len(query) > 3:
+            # Auto-search when query changes and is long enough
+            should_search = True
+
+        if should_search:
+            st.session_state.last_query = query
             with st.spinner("Searching..."):
                 response = pipeline.query(query)
+                st.session_state.last_response = response
+
+        # Display results if available
+        if st.session_state.last_response:
+            response = st.session_state.last_response
 
             st.subheader("Answer")
             st.write(response.answer)

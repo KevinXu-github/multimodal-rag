@@ -1,0 +1,169 @@
+# Knowledge Graphs in Enterprise Systems
+
+## What is a Knowledge Graph?
+
+A knowledge graph is a network of entities and their relationships, stored as nodes and edges. Unlike traditional databases, knowledge graphs emphasize connections and enable graph-based reasoning.
+
+## Graph Databases
+
+### Neo4j
+Neo4j is the leading graph database:
+- **Cypher Query Language**: Declarative pattern matching
+- **ACID Transactions**: Full data consistency
+- **Property Graphs**: Rich attributes on nodes and edges
+- **Indexes**: Fast lookups on properties
+- **Scalability**: Sharding and clustering support
+
+Example Cypher query:
+```cypher
+MATCH (p:Person)-[:WORKS_AT]->(c:Company)
+WHERE c.name = 'Anthropic'
+RETURN p.name, p.role
+```
+
+### Other Graph Databases
+- **Amazon Neptune**: Managed graph service (RDF and Property graphs)
+- **ArangoDB**: Multi-model database with graph capabilities
+- **JanusGraph**: Distributed graph database
+- **OrientDB**: Multi-model with strong graph features
+
+## Entity Types
+
+Common entity categories in knowledge graphs:
+- **Person**: Individuals, authors, employees
+- **Organization**: Companies, institutions, teams
+- **Location**: Cities, countries, addresses
+- **Document**: Papers, reports, files
+- **Concept**: Ideas, technologies, methodologies
+- **Event**: Meetings, conferences, releases
+- **Product**: Software, hardware, services
+
+## Relationship Types
+
+Standard relationships in enterprise knowledge graphs:
+- **WORKS_AT**: Person → Organization
+- **LOCATED_IN**: Entity → Location
+- **AUTHORED**: Person → Document
+- **MENTIONS**: Document → Entity
+- **RELATED_TO**: Concept → Concept
+- **PART_OF**: Entity → Entity
+- **OCCURRED_AT**: Event → Location
+
+## Graph RAG Architecture
+
+Combining graphs with RAG:
+1. **Entity Extraction**: LLMs identify entities in documents
+2. **Relationship Mapping**: Extract connections between entities
+3. **Graph Construction**: Build knowledge graph
+4. **Graph Traversal**: Navigate relationships for context
+5. **Hybrid Retrieval**: Combine graph + vector search
+
+## Query Patterns
+
+### One-Hop Queries
+```cypher
+MATCH (d:Document)-[:MENTIONS]->(e:Entity)
+WHERE e.name = 'RAG'
+RETURN d.title
+```
+Returns documents mentioning a specific entity.
+
+### Two-Hop Queries
+```cypher
+MATCH (e1:Entity)-[:RELATED_TO]->(e2:Entity)-[:MENTIONED_IN]->(d:Document)
+WHERE e1.name = 'Vector Database'
+RETURN e2.name, d.title
+```
+Finds related concepts and their documents.
+
+### Path Finding
+```cypher
+MATCH path = shortestPath(
+  (a:Person)-[*]-(b:Person)
+)
+WHERE a.name = 'Alice' AND b.name = 'Bob'
+RETURN path
+```
+Discovers connections between entities.
+
+## Cross-Modal Entity Linking
+
+Challenge: Same entity mentioned across different modalities
+- "Dr. Smith" in PDF
+- "Smith" in audio transcription
+- "Dr. John Smith" in image caption
+
+Solutions:
+1. **String Similarity**: Levenshtein distance, fuzzy matching
+2. **Embedding Similarity**: Compare entity embeddings
+3. **Context Matching**: Use surrounding text
+4. **Canonical Resolution**: Maintain entity dictionary
+
+## Graph Algorithms
+
+Useful algorithms for knowledge graphs:
+
+### Centrality
+- **Degree Centrality**: Most connected entities
+- **Betweenness**: Entities bridging communities
+- **PageRank**: Influential entities
+
+### Community Detection
+- **Louvain**: Identify clusters
+- **Label Propagation**: Fast community finding
+- **Connected Components**: Separate subgraphs
+
+### Path Analysis
+- **Shortest Path**: Minimum hops between entities
+- **All Paths**: Enumerate connections
+- **Weighted Paths**: Consider relationship strengths
+
+## Advantages Over Traditional DBs
+
+1. **Relationship-First**: Optimized for connections
+2. **Flexible Schema**: Easy to add new relationship types
+3. **Query Expressiveness**: Pattern matching in Cypher
+4. **Performance**: O(1) relationship traversal
+5. **Reasoning**: Multi-hop inference capabilities
+
+## Challenges
+
+- **Data Quality**: Entity resolution errors compound
+- **Schema Evolution**: Balancing flexibility with structure
+- **Query Complexity**: Deep traversals can be slow
+- **Scalability**: Distributing graphs is hard
+- **Maintenance**: Keeping graph synchronized with sources
+
+## Best Practices
+
+1. Define clear entity and relationship ontologies
+2. Use indexes on frequently queried properties
+3. Implement proper error handling for extraction
+4. Monitor graph growth and connectivity
+5. Regularly validate entity linkages
+6. Use batch operations for bulk imports
+7. Implement graph versioning for updates
+
+## Graph + Vector Hybrid Search
+
+Combining strengths of both:
+- **Vector Search**: Find semantically similar content
+- **Graph Traversal**: Explore related entities
+- **Weighted Fusion**: Blend results (e.g., 30% graph, 50% vector, 20% keyword)
+
+Example workflow:
+1. User query: "What are the evaluation metrics?"
+2. Vector search: Find similar document chunks
+3. Entity extraction: Identify "evaluation metrics" entity
+4. Graph traversal: Find related concepts
+5. Fusion: Combine results with weights
+6. LLM generation: Synthesize final answer
+
+## Real-World Applications
+
+- **Enterprise Search**: Navigate organizational knowledge
+- **Recommendation Systems**: Suggest related content
+- **Fraud Detection**: Identify suspicious patterns
+- **Drug Discovery**: Map molecular interactions
+- **Supply Chain**: Track product dependencies
+- **Knowledge Management**: Connect company expertise

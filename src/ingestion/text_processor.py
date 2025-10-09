@@ -1,27 +1,23 @@
-"""PDF document processor."""
+"""Plain text document processor."""
 
 import time
-import logging
 from pathlib import Path
-from typing import Dict, Any, Optional, List
-import pypdf
+from typing import Dict, Any, Optional
 from .base import BaseProcessor, Document, ProcessingResult, Modality
 
-logger = logging.getLogger(__name__)
 
+class TextProcessor(BaseProcessor):
+    """Processes plain text documents."""
 
-class PDFProcessor(BaseProcessor):
-    """Processes PDF documents."""
-
-    SUPPORTED_EXTENSIONS = {".pdf"}
-    MAX_FILE_SIZE_MB = 50
+    SUPPORTED_EXTENSIONS = {".txt", ".md", ".rst", ".log"}
+    MAX_FILE_SIZE_MB = 10
 
     def can_process(self, file_path: Path) -> bool:
-        """Check if file is a PDF."""
+        """Check if file is a text file."""
         return file_path.suffix.lower() in self.SUPPORTED_EXTENSIONS
 
     def validate(self, file_path: Path) -> tuple[bool, Optional[str]]:
-        """Validate PDF file."""
+        """Validate text file."""
         if not file_path.exists():
             return False, "File does not exist"
 
@@ -33,12 +29,12 @@ class PDFProcessor(BaseProcessor):
             return False, f"File too large: {file_size_mb:.1f}MB > {self.MAX_FILE_SIZE_MB}MB"
 
         if not self.can_process(file_path):
-            return False, "Not a PDF file"
+            return False, "Not a supported text file"
 
         return True, None
 
     def process(self, file_path: Path, metadata: Optional[Dict[str, Any]] = None) -> ProcessingResult:
-        """Process PDF and extract text."""
+        """Process text file and extract content."""
         start_time = time.time()
 
         is_valid, error = self.validate(file_path)
@@ -51,14 +47,13 @@ class PDFProcessor(BaseProcessor):
             )
 
         try:
-            text_content = self._extract_text(file_path)
-            pdf_metadata = self._extract_metadata(file_path)
+            # Try multiple encodings
+            text_content = self._read_text(file_path)
 
             combined_metadata = {
                 "file_name": file_path.name,
                 "file_size_bytes": file_path.stat().st_size,
-                "page_count": pdf_metadata.get("page_count", 0),
-                **pdf_metadata,
+                "encoding": "utf-8",
                 **(metadata or {}),
             }
 
@@ -82,41 +77,22 @@ class PDFProcessor(BaseProcessor):
             return ProcessingResult(
                 success=False,
                 document=None,
-                error=f"Failed to process PDF: {str(e)}",
+                error=f"Failed to process text file: {str(e)}",
                 processing_time_ms=(time.time() - start_time) * 1000,
             )
 
-    def _extract_text(self, file_path: Path) -> str:
-        """Extract text from PDF."""
-        text_parts = []
+    def _read_text(self, file_path: Path) -> str:
+        """Read text file with encoding detection."""
+        encodings = ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252', 'iso-8859-1']
 
-        with open(file_path, "rb") as f:
-            reader = pypdf.PdfReader(f)
+        for encoding in encodings:
+            try:
+                with open(file_path, 'r', encoding=encoding) as f:
+                    content = f.read()
+                return content.strip()
+            except UnicodeDecodeError:
+                continue
 
-            for page_num, page in enumerate(reader.pages, 1):
-                page_text = page.extract_text()
-                if page_text.strip():
-                    text_parts.append(f"[Page {page_num}]\n{page_text}")
-
-        return "\n\n".join(text_parts)
-
-    def _extract_metadata(self, file_path: Path) -> Dict[str, Any]:
-        """Extract metadata from PDF."""
-        metadata = {}
-
-        try:
-            with open(file_path, "rb") as f:
-                reader = pypdf.PdfReader(f)
-                metadata["page_count"] = len(reader.pages)
-
-                if reader.metadata:
-                    pdf_meta = reader.metadata
-                    metadata["title"] = pdf_meta.get("/Title", "")
-                    metadata["author"] = pdf_meta.get("/Author", "")
-                    metadata["subject"] = pdf_meta.get("/Subject", "")
-                    metadata["creator"] = pdf_meta.get("/Creator", "")
-
-        except Exception as e:
-            logger.warning(f"Warning: Could not extract PDF metadata: {e}")
-
-        return metadata
+        # Fallback: read as binary and decode with errors='ignore'
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            return f.read().strip()

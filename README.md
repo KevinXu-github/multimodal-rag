@@ -18,8 +18,9 @@
 - **Multimodal Ingestion Pipeline**: Process PDF, images (Tesseract/EasyOCR), and audio (OpenAI Whisper)
 - **Knowledge Graph (Neo4j)**: LLM-based entity and relationship extraction (7 entity types, 7 relationship types)
 - **Vector Database (Qdrant)**: Semantic search with Sentence Transformers embeddings
+- **Agent-Based Retrieval**: Specialized agents (Factual, Lookup, Reasoning) with query-type routing
 - **Hybrid Search Engine**: Combines graph traversal (30%), keyword filtering (20%), and vector retrieval (50%)
-- **LLM Integration**: Support for Google Gemini, OpenAI, and Anthropic models
+- **LLM Integration**: Ollama (default), Google Gemini, OpenAI, and Anthropic models
 - **Evaluation Framework**: 5 query types, 8 metrics, DeepEval integration with graceful failures
 - **Dual Interface**: CLI and Streamlit web UI
 
@@ -46,7 +47,7 @@ multimodal-rag/
 
 - Docker Desktop (for Neo4j + Qdrant)
 - Python 3.8+
-- Google Gemini API key (or OpenAI/Anthropic)
+- Ollama - [Download](https://ollama.com/download)
 
 ### 2. Start Infrastructure
 
@@ -83,39 +84,47 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 4. Configure Environment
+### 4. Install Ollama
+
+Download and install from [ollama.com/download](https://ollama.com/download)
+
+Pull the llama3.2 model:
+```bash
+ollama pull llama3.2
+```
+
+### 5. Configure Environment
 
 ```bash
-# Copy template
 cp .env.example .env
-
-# Edit .env with your API key
 ```
 
 Required in `.env`:
 ```bash
-GOOGLE_API_KEY=your_google_api_key_here  # Get from: https://aistudio.google.com/app/apikey
 NEO4J_URI=bolt://localhost:7687
 NEO4J_PASSWORD=password123
 QDRANT_HOST=localhost
-LLM_PROVIDER=google
-LLM_MODEL=gemini-1.5-flash
+
+# Optional: To use other LLM providers
+# LLM_PROVIDER=google
+# LLM_MODEL=gemini-1.5-flash
+# GOOGLE_API_KEY=your_api_key_here
 ```
 
-### 5. Run the System
+### 6. Run the System
 
-**Option A - CLI (Recommended for first-time):**
+**CLI:**
 ```bash
 python -m src.main
 ```
 
-**Option B - Web UI:**
+**Web UI:**
 ```bash
 streamlit run src/ui/app.py
 # Opens http://localhost:8501
 ```
 
-**Option C - Test the system:**
+**Test:**
 ```bash
 python test_system.py
 ```

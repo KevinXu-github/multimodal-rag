@@ -1,11 +1,14 @@
 """Image processor with OCR and captioning."""
 
 import time
+import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
 from PIL import Image
 import pytesseract
 from .base import BaseProcessor, Document, ProcessingResult, Modality
+
+logger = logging.getLogger(__name__)
 
 
 class ImageProcessor(BaseProcessor):
@@ -109,5 +112,5 @@ class ImageProcessor(BaseProcessor):
             text = pytesseract.image_to_string(image)
             return text.strip()
         except Exception as e:
-            print(f"OCR failed: {e}")
+            logger.error(f"OCR failed: {e}", exc_info=True)
             return ""

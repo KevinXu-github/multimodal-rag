@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .base import BaseProcessor, Document, ProcessingResult
 from .pdf_processor import PDFProcessor
+from .text_processor import TextProcessor
 from .image_processor import ImageProcessor
 from .audio_processor import AudioProcessor
 from .chunker import TextChunker, ChunkConfig
@@ -24,6 +25,7 @@ class IngestionPipeline:
         """Initialize ingestion pipeline."""
         self.processors: List[BaseProcessor] = [
             PDFProcessor(),
+            TextProcessor(),
             ImageProcessor(use_ocr=True),
             AudioProcessor(model_name=whisper_model),
         ]

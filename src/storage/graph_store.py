@@ -3,8 +3,11 @@
 from typing import List, Dict, Any, Optional
 from neo4j import GraphDatabase
 import time
+import logging
 
 from ..extraction.entities import Entity, Relationship
+
+logger = logging.getLogger(__name__)
 
 
 class Neo4jGraphStore:
@@ -52,7 +55,7 @@ class Neo4jGraphStore:
                 )
                 return True
             except Exception as e:
-                print(f"Error adding entity: {e}")
+                logger.error(f"Error adding entity {entity.name}: {e}", exc_info=True)
                 return False
 
     def add_entities_batch(self, entities: List[Entity]) -> int:
@@ -78,7 +81,7 @@ class Neo4jGraphStore:
                     )
                     count += 1
                 except Exception as e:
-                    print(f"Error adding entity {entity.name}: {e}")
+                    logger.error(f"Error adding entity {entity.name}: {e}", exc_info=True)
         return count
 
     def add_relationship(self, relationship: Relationship) -> bool:
@@ -104,7 +107,7 @@ class Neo4jGraphStore:
                 )
                 return True
             except Exception as e:
-                print(f"Error adding relationship: {e}")
+                logger.error(f"Error adding relationship {relationship.source_entity}->{relationship.target_entity}: {e}", exc_info=True)
                 return False
 
     def add_relationships_batch(self, relationships: List[Relationship]) -> int:
@@ -132,7 +135,7 @@ class Neo4jGraphStore:
                     )
                     count += 1
                 except Exception as e:
-                    print(f"Error adding relationship: {e}")
+                    logger.error(f"Error adding relationship {rel.source_entity}->{rel.target_entity}: {e}", exc_info=True)
         return count
 
     def find_entity(self, name: str) -> Optional[Dict[str, Any]]:

@@ -1,11 +1,14 @@
 """Hybrid search combining graph, keyword, and vector retrieval."""
 
 import time
+import logging
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 
 from ..storage.graph_store import Neo4jGraphStore
 from ..storage.vector_store import QdrantVectorStore
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -120,7 +123,7 @@ class HybridSearchEngine:
                 )
 
         except Exception as e:
-            print(f"Vector search error: {e}")
+            logger.error(f"Vector search error: {e}", exc_info=True)
 
         return results
 
@@ -153,7 +156,7 @@ class HybridSearchEngine:
                     )
 
         except Exception as e:
-            print(f"Graph search error: {e}")
+            logger.error(f"Graph search error: {e}", exc_info=True)
 
         return results
 
@@ -192,7 +195,7 @@ class HybridSearchEngine:
                 )
 
         except Exception as e:
-            print(f"Keyword search error: {e}")
+            logger.error(f"Keyword search error: {e}", exc_info=True)
 
         return results
 

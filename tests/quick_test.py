@@ -1,7 +1,10 @@
 """Quick test with corrected Gemini model."""
 
+import sys
 import os
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from dotenv import load_dotenv
 from src.pipeline import MultimodalRAGPipeline
 
@@ -25,7 +28,8 @@ pipeline.initialize()
 print("   Done\n")
 
 print("2. Ingesting PDF...")
-success = pipeline.ingest_file(Path("HybridMultiModalChallenge.pdf"))
+pdf_path = Path(__file__).parent.parent / "HybridMultiModalChallenge.pdf"
+success = pipeline.ingest_file(pdf_path)
 print(f"   {'Success' if success else 'Failed'}\n")
 
 print("3. Querying...")

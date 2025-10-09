@@ -1,6 +1,7 @@
 """Audio processor with transcription."""
 
 import time
+import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
 try:
@@ -9,6 +10,8 @@ try:
 except ImportError:
     WHISPER_AVAILABLE = False
 from .base import BaseProcessor, Document, ProcessingResult, Modality
+
+logger = logging.getLogger(__name__)
 
 
 class AudioProcessor(BaseProcessor):
@@ -20,8 +23,8 @@ class AudioProcessor(BaseProcessor):
     def __init__(self, model_name: str = "base"):
         """Initialize audio processor with Whisper model."""
         if not WHISPER_AVAILABLE:
-            print("Warning: Whisper not installed. Audio processing will fail.")
-            print("Install with: pip install openai-whisper")
+            logger.warning("Warning: Whisper not installed. Audio processing will fail.")
+            logger.info("Install with: pip install openai-whisper")
         self.model_name = model_name
         self._model = None
 

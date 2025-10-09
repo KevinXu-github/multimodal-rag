@@ -1,6 +1,7 @@
 """Core evaluation engine using DeepEval."""
 
 import time
+import logging
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 
@@ -25,6 +26,8 @@ from .metrics import (
     DEFAULT_CRITERIA,
 )
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class TestCase:
@@ -47,7 +50,7 @@ class RAGEvaluator:
         self.use_deepeval = use_deepeval and DEEPEVAL_AVAILABLE
 
         if use_deepeval and not DEEPEVAL_AVAILABLE:
-            print("Warning: DeepEval not available. Install with: pip install deepeval")
+            logger.warning("Warning: DeepEval not available. Install with: pip install deepeval")
             self.use_deepeval = False
 
     def evaluate_response(
@@ -164,7 +167,7 @@ class RAGEvaluator:
             metrics_dict[MetricType.CONTEXT_RELEVANCE] = context_metric.score
 
         except Exception as e:
-            print(f"DeepEval evaluation error: {e}")
+            logger.error(f"DeepEval evaluation error: {e}", exc_info=True)
             return self._evaluate_basic(query, actual_answer, expected_answer, retrieved_contexts)
 
         return metrics_dict
@@ -228,7 +231,7 @@ class RAGEvaluator:
                 results.append(result)
 
             except Exception as e:
-                print(f"Error evaluating test case '{test_case.query}': {e}")
+                logger.error(f"Error evaluating test case '{test_case.query}': {e}", exc_info=True)
                 continue
 
         return results

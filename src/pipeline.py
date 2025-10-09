@@ -1,6 +1,7 @@
 """Main RAG pipeline orchestrating all components."""
 
 import time
+import logging
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
@@ -11,6 +12,9 @@ from .storage import Neo4jGraphStore, QdrantVectorStore
 from .retrieval import HybridSearchEngine, QueryProcessor
 from .generation import AnswerGenerator
 from .evaluation import RAGEvaluator, GracefulFailureHandler
+from .agents import AgentRouter
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -33,8 +37,8 @@ class MultimodalRAGPipeline:
         neo4j_password: str,
         qdrant_host: str = "localhost",
         qdrant_port: int = 6333,
-        llm_provider: str = "google",
-        llm_model: str = "gemini-1.5-flash",
+        llm_provider: str = "ollama",
+        llm_model: str = "llama3.2",
         llm_api_key: Optional[str] = None,
         embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
         enable_evaluation: bool = True,
@@ -60,6 +64,12 @@ class MultimodalRAGPipeline:
             vector_store=self.vector_store,
         )
 
+        # Agent-based retrieval orchestration
+        self.agent_router = AgentRouter(
+            graph_store=self.graph_store,
+            vector_store=self.vector_store,
+        )
+
         self.query_processor = QueryProcessor()
         self.generator = AnswerGenerator(
             llm_provider=llm_provider,
@@ -69,6 +79,7 @@ class MultimodalRAGPipeline:
 
         self.evaluator = RAGEvaluator() if enable_evaluation else None
         self.failure_handler = GracefulFailureHandler()
+        self.use_agents = True  # Toggle for agent-based vs hybrid search
 
     def initialize(self):
         """Initialize databases and schemas."""
@@ -81,7 +92,7 @@ class MultimodalRAGPipeline:
             result = self.ingestion.process_file(file_path)
 
             if not result.success:
-                print(f"Failed to process {file_path}: {result.error}")
+                logger.error(f"Failed to process {file_path}: {result.error}", exc_info=True)
                 return False
 
             doc = result.document
@@ -91,7 +102,7 @@ class MultimodalRAGPipeline:
             return True
 
         except Exception as e:
-            print(f"Error ingesting {file_path}: {e}")
+            logger.error(f"Error ingesting {file_path}: {e}", exc_info=True)
             return False
 
     def ingest_directory(self, directory: Path) -> Dict[str, Any]:
@@ -133,44 +144,103 @@ class MultimodalRAGPipeline:
             )
 
         try:
-            search_result = self.search_engine.search(
-                query=processed.processed_query,
-                top_k=5,
-            )
+            # Use agent-based retrieval if enabled
+            if self.use_agents:
+                retrieval_start = time.time()
+                agent_result = self.agent_router.route(
+                    query=processed.processed_query,
+                    query_type=processed.query_type,
+                    top_k=5,
+                )
+                retrieval_time_ms = (time.time() - retrieval_start) * 1000
 
-            if not search_result.results:
+                if not agent_result.contexts:
+                    return RAGResponse(
+                        question=question,
+                        answer=self.failure_handler.no_context_found(),
+                        contexts=[],
+                        confidence=0.0,
+                        metrics={
+                            "retrieval_time_ms": retrieval_time_ms,
+                            "total_time_ms": (time.time() - start_time) * 1000,
+                            "agent_used": agent_result.agent_name,
+                        },
+                    )
+
+                # Convert agent contexts to SearchResults for generator
+                from .retrieval.hybrid_search import SearchResult
+                search_results = [
+                    SearchResult(
+                        content=ctx,
+                        score=agent_result.confidence,
+                        source=agent_result.agent_name,
+                        metadata=agent_result.metadata,
+                        retrieval_method="agent",
+                    )
+                    for ctx in agent_result.contexts
+                ]
+
+                generated = self.generator.generate(
+                    question=question,
+                    search_results=search_results,
+                )
+
+                total_time_ms = (time.time() - start_time) * 1000
+
                 return RAGResponse(
                     question=question,
-                    answer=self.failure_handler.no_context_found(),
-                    contexts=[],
-                    confidence=0.0,
+                    answer=generated.answer,
+                    contexts=generated.contexts_used,
+                    confidence=generated.confidence,
                     metrics={
-                        "retrieval_time_ms": search_result.retrieval_time_ms,
-                        "total_time_ms": (time.time() - start_time) * 1000,
+                        "retrieval_time_ms": retrieval_time_ms,
+                        "generation_time_ms": generated.generation_time_ms,
+                        "total_time_ms": total_time_ms,
+                        "agent_used": agent_result.agent_name,
+                        "query_type": processed.query_type.value,
                     },
                 )
 
-            generated = self.generator.generate(
-                question=question,
-                search_results=search_result.results,
-            )
+            # Fall back to hybrid search if agents disabled
+            else:
+                search_result = self.search_engine.search(
+                    query=processed.processed_query,
+                    top_k=5,
+                )
 
-            total_time_ms = (time.time() - start_time) * 1000
+                if not search_result.results:
+                    return RAGResponse(
+                        question=question,
+                        answer=self.failure_handler.no_context_found(),
+                        contexts=[],
+                        confidence=0.0,
+                        metrics={
+                            "retrieval_time_ms": search_result.retrieval_time_ms,
+                            "total_time_ms": (time.time() - start_time) * 1000,
+                        },
+                    )
 
-            return RAGResponse(
-                question=question,
-                answer=generated.answer,
-                contexts=generated.contexts_used,
-                confidence=generated.confidence,
-                metrics={
-                    "retrieval_time_ms": search_result.retrieval_time_ms,
-                    "generation_time_ms": generated.generation_time_ms,
-                    "total_time_ms": total_time_ms,
-                },
-            )
+                generated = self.generator.generate(
+                    question=question,
+                    search_results=search_result.results,
+                )
+
+                total_time_ms = (time.time() - start_time) * 1000
+
+                return RAGResponse(
+                    question=question,
+                    answer=generated.answer,
+                    contexts=generated.contexts_used,
+                    confidence=generated.confidence,
+                    metrics={
+                        "retrieval_time_ms": search_result.retrieval_time_ms,
+                        "generation_time_ms": generated.generation_time_ms,
+                        "total_time_ms": total_time_ms,
+                    },
+                )
 
         except Exception as e:
-            print(f"Query error: {e}")
+            logger.error(f"Query error: {e}", exc_info=True)
             return RAGResponse(
                 question=question,
                 answer=f"An error occurred: {str(e)}",

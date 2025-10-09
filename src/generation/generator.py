@@ -1,6 +1,7 @@
 """Answer generation using LLMs."""
 
 import time
+import logging
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 try:
@@ -11,9 +12,18 @@ try:
     from anthropic import Anthropic
 except ImportError:
     Anthropic = None
-import google.generativeai as genai
+try:
+    import google.generativeai as genai
+except ImportError:
+    genai = None
+try:
+    import ollama
+except ImportError:
+    ollama = None
 
 from ..retrieval.hybrid_search import SearchResult
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -47,8 +57,8 @@ Answer the question based only on the context provided above. If the context doe
 
     def __init__(
         self,
-        llm_provider: str = "openai",
-        model_name: str = "gpt-4",
+        llm_provider: str = "ollama",
+        model_name: str = "llama3.2",
         api_key: Optional[str] = None,
         temperature: float = 0.0,
         max_tokens: int = 500,
@@ -58,8 +68,14 @@ Answer the question based only on the context provided above. If the context doe
         self.model_name = model_name
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.api_key = api_key
 
-        if llm_provider == "openai":
+        if llm_provider == "ollama":
+            if ollama is None:
+                raise ImportError("Ollama not installed. Install with: pip install ollama")
+            self.client = None  # Ollama doesn't need a client object
+            logger.info(f"Using Ollama with model: {model_name}")
+        elif llm_provider == "openai":
             if OpenAI is None:
                 raise ImportError("OpenAI not installed. Install with: pip install openai")
             self.client = OpenAI(api_key=api_key)
@@ -68,6 +84,8 @@ Answer the question based only on the context provided above. If the context doe
                 raise ImportError("Anthropic not installed. Install with: pip install anthropic")
             self.client = Anthropic(api_key=api_key)
         elif llm_provider == "google":
+            if genai is None:
+                raise ImportError("Google GenAI not installed. Install with: pip install google-generativeai")
             genai.configure(api_key=api_key)
             self.client = genai.GenerativeModel(model_name)
         else:
@@ -100,7 +118,7 @@ Answer the question based only on the context provided above. If the context doe
             )
 
         except Exception as e:
-            print(f"Generation error: {e}")
+            logger.error(f"Generation error: {e}", exc_info=True)
             generation_time_ms = (time.time() - start_time) * 1000
 
             return GeneratedAnswer(
@@ -139,7 +157,25 @@ Answer the question based only on the context provided above. If the context doe
             question=question,
         )
 
-        if self.llm_provider == "openai":
+        if self.llm_provider == "ollama":
+            # Ollama local LLM - no API key needed!
+            full_prompt = f"{self.SYSTEM_PROMPT}\n\n{prompt}"
+            try:
+                response = ollama.generate(
+                    model=self.model_name,
+                    prompt=full_prompt,
+                    options={
+                        "temperature": self.temperature,
+                        "num_predict": self.max_tokens,
+                    }
+                )
+                return response['response']
+            except Exception as e:
+                logger.error(f"Ollama error: {e}")
+                # Fallback: return context-only answer
+                return f"Retrieved context:\n\n{context[:500]}..."
+
+        elif self.llm_provider == "openai":
             response = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=[

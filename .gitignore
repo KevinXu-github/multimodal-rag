@@ -30,6 +30,8 @@ venv/
 ENV/
 env/
 .virtualenv/
+**/venv/
+tests/unit/venv/
 
 # Environment Variables & Secrets
 .env

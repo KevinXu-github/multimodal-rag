@@ -1,0 +1,118 @@
+# Vector Databases for RAG Systems
+
+## Introduction
+Vector databases are specialized storage systems designed for high-dimensional vector embeddings. They enable semantic search by finding similar vectors in multidimensional space.
+
+## Popular Vector Databases
+
+### Qdrant
+Qdrant is an open-source vector database written in Rust. Key features:
+- Fast similarity search with HNSW algorithm
+- Filtering capabilities with metadata
+- Supports multiple distance metrics (Cosine, Euclidean, Dot Product)
+- RESTful API and gRPC support
+- Distributed deployment options
+
+### Pinecone
+Pinecone is a managed vector database service:
+- Fully managed cloud solution
+- Auto-scaling capabilities
+- Built-in metadata filtering
+- Integration with major ML frameworks
+- Real-time indexing
+
+### Weaviate
+Weaviate combines vector search with knowledge graphs:
+- GraphQL API
+- Modular architecture
+- Built-in vectorization modules
+- Support for cross-references
+- Hybrid search capabilities
+
+### Milvus
+Milvus is a cloud-native vector database:
+- Highly scalable architecture
+- GPU acceleration support
+- Multiple index types
+- Time travel queries
+- Strong consistency guarantees
+
+## How Vector Search Works
+
+1. **Embedding Generation**: Convert text/images to vectors using models like:
+   - Sentence-BERT
+   - OpenAI text-embedding-ada-002
+   - Google Universal Sentence Encoder
+
+2. **Indexing**: Store vectors in optimized data structures:
+   - HNSW (Hierarchical Navigable Small World)
+   - IVF (Inverted File Index)
+   - Product Quantization
+
+3. **Query**: Search for similar vectors using distance metrics:
+   - Cosine Similarity: Measures angle between vectors
+   - Euclidean Distance: Straight-line distance
+   - Dot Product: Combined magnitude and direction
+
+4. **Retrieval**: Return top-k most similar results with scores
+
+## Distance Metrics Explained
+
+### Cosine Similarity
+- Range: [-1, 1] (typically normalized to [0, 1])
+- Best for: Text embeddings where magnitude doesn't matter
+- Formula: cos(θ) = (A · B) / (||A|| ||B||)
+
+### Euclidean Distance
+- Range: [0, ∞)
+- Best for: When actual distance matters
+- Formula: √(Σ(Ai - Bi)²)
+
+### Dot Product
+- Range: (-∞, ∞)
+- Best for: When magnitude is meaningful
+- Formula: Σ(Ai × Bi)
+
+## Integration with RAG
+
+Vector databases serve as the semantic retrieval layer:
+1. Document chunking and embedding
+2. Store chunks with metadata
+3. Query embedding generation
+4. Similarity search for relevant chunks
+5. Return context to LLM
+
+## Performance Considerations
+
+- **Index Type**: HNSW for speed, IVF for memory efficiency
+- **Dimension Size**: 384 (MiniLM), 768 (BERT), 1536 (OpenAI)
+- **Batch Size**: Balance throughput vs latency
+- **Metadata Filtering**: Pre-filter vs post-filter tradeoffs
+- **Replication**: Read replicas for query scaling
+
+## Best Practices
+
+1. Use appropriate embedding models for your domain
+2. Normalize vectors for cosine similarity
+3. Implement metadata filtering for precision
+4. Monitor query latency and p95/p99 metrics
+5. Set up automated backups
+6. Use connection pooling for efficiency
+7. Batch operations when possible
+
+## Common Pitfalls
+
+- Using wrong distance metric for embedding model
+- Not normalizing vectors when needed
+- Ignoring metadata filtering capabilities
+- Over-indexing (too many fields)
+- Not monitoring storage growth
+- Skipping dimension reduction when appropriate
+
+## Emerging Trends
+
+- Hybrid sparse-dense search
+- Multi-vector representations
+- Dynamic embeddings
+- Federated vector search
+- Edge deployment of vector DBs

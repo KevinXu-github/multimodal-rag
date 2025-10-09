@@ -2,6 +2,8 @@
 
 import time
 import json
+import re
+import logging
 from typing import List, Dict, Any, Optional
 try:
     from openai import OpenAI
@@ -11,7 +13,14 @@ try:
     from anthropic import Anthropic
 except ImportError:
     Anthropic = None
-import google.generativeai as genai
+try:
+    import google.generativeai as genai
+except ImportError:
+    genai = None
+try:
+    import ollama
+except ImportError:
+    ollama = None
 
 from .entities import (
     Entity,
@@ -20,6 +29,8 @@ from .entities import (
     EntityType,
     RelationType,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class EntityExtractor:
@@ -41,15 +52,20 @@ Return only valid JSON."""
 
     def __init__(
         self,
-        llm_provider: str = "openai",
-        model_name: str = "gpt-4",
+        llm_provider: str = "ollama",
+        model_name: str = "llama3.2",
         api_key: Optional[str] = None,
     ):
         """Initialize extractor with LLM provider."""
         self.llm_provider = llm_provider
         self.model_name = model_name
 
-        if llm_provider == "openai":
+        if llm_provider == "ollama":
+            if ollama is None:
+                raise ImportError("Ollama not installed. Install with: pip install ollama")
+            self.client = None  # Ollama doesn't need a client object
+            logger.info(f"Using Ollama with model: {model_name}")
+        elif llm_provider == "openai":
             if OpenAI is None:
                 raise ImportError("OpenAI not installed. Install with: pip install openai")
             self.client = OpenAI(api_key=api_key)
@@ -58,6 +74,8 @@ Return only valid JSON."""
                 raise ImportError("Anthropic not installed. Install with: pip install anthropic")
             self.client = Anthropic(api_key=api_key)
         elif llm_provider == "google":
+            if genai is None:
+                raise ImportError("Google GenAI not installed. Install with: pip install google-generativeai")
             genai.configure(api_key=api_key)
             self.client = genai.GenerativeModel(model_name)
         else:
@@ -99,7 +117,7 @@ Return only valid JSON."""
             )
 
         except Exception as e:
-            print(f"Extraction error: {e}")
+            logger.error(f"Extraction error: {e}", exc_info=True)
             processing_time_ms = (time.time() - start_time) * 1000
             return ExtractionResult(
                 entities=[],
@@ -123,7 +141,21 @@ Return only valid JSON."""
         """Call LLM for extraction."""
         prompt = self.EXTRACTION_PROMPT.format(text=text)
 
-        if self.llm_provider == "openai":
+        if self.llm_provider == "ollama":
+            system_msg = "You are an entity extraction assistant. Return only valid JSON."
+            full_prompt = f"{system_msg}\n\n{prompt}"
+            try:
+                response = ollama.generate(
+                    model=self.model_name,
+                    prompt=full_prompt,
+                    options={"temperature": 0.0}
+                )
+                return response['response']
+            except Exception as e:
+                logger.error(f"Ollama error: {e}")
+                return '{"entities": [], "relationships": []}'
+
+        elif self.llm_provider == "openai":
             response = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=[
@@ -154,7 +186,7 @@ Return only valid JSON."""
                 return json.loads(json_match.group())
             return json.loads(response)
         except json.JSONDecodeError:
-            print(f"Failed to parse JSON: {response[:200]}")
+            logger.error(f"Failed to parse JSON: {response[:200]}", exc_info=True)
             return {"entities": [], "relationships": []}
 
     def _create_entities(
@@ -176,7 +208,7 @@ Return only valid JSON."""
                 )
                 entities.append(entity)
             except (KeyError, ValueError) as e:
-                print(f"Skipping invalid entity: {data}, error: {e}")
+                logger.error(f"Skipping invalid entity: {data}, error: {e}", exc_info=True)
                 continue
 
         return entities
@@ -201,7 +233,7 @@ Return only valid JSON."""
                 )
                 relationships.append(relationship)
             except (KeyError, ValueError) as e:
-                print(f"Skipping invalid relationship: {data}, error: {e}")
+                logger.error(f"Skipping invalid relationship: {data}, error: {e}", exc_info=True)
                 continue
 
         return relationships
