@@ -46,7 +46,6 @@ def get_pipeline():
 def main():
     st.set_page_config(
         page_title="Multimodal RAG System",
-        page_icon="📚",
         layout="wide",
     )
 

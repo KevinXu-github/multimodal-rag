@@ -115,7 +115,7 @@ QDRANT_HOST=localhost
 
 **CLI:**
 ```bash
-python -m src.main
+python main.py
 ```
 
 **Web UI:**
@@ -126,7 +126,7 @@ streamlit run src/ui/app.py
 
 **Test:**
 ```bash
-python test_system.py
+python -m pytest tests/
 ```
 
 ## Usage

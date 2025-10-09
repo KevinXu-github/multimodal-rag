@@ -73,13 +73,13 @@ Multimodal RAG System Test
 ============================================================
 
 1. Checking configuration...
-✓ API key found
+[x] API key found
 
 2. Initializing pipeline...
-✓ Pipeline created
+[x] Pipeline created
 
 3. Initializing databases...
-✓ Databases initialized
+[x] Databases initialized
 
 ...
 ```

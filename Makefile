@@ -22,7 +22,7 @@ install:
 	$(VENV)/bin/$(PIP) install --upgrade pip
 	$(VENV)/bin/$(PIP) install -r requirements.txt
 	$(VENV)/bin/$(PIP) install -r requirements-dev.txt
-	@echo "✅ Installation complete."
+	@echo "Installation complete."
 
 test:
 	$(VENV)/bin/pytest tests -v
@@ -46,7 +46,7 @@ docker-down:
 	$(DOCKER_COMPOSE) -f infrastructure/docker/docker-compose.yml down
 
 run:
-	$(VENV)/bin/python src/main.py
+	$(PYTHON) main.py
 
 verify:
 	$(VENV)/bin/python scripts/setup/verify.py
